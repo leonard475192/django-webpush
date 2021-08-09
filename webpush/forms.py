@@ -11,7 +11,7 @@ class WebPushForm(forms.Form):
                                     ])
 
     def save_or_delete(self, subscription, user, status_type, group_name):
-        data = {}
+        data = {"user": None, "group": None}
 
         if user.is_authenticated:
             data["user"] = user
@@ -25,7 +25,7 @@ class WebPushForm(forms.Form):
         push_info, created = PushInformation.objects.get_or_create(**data)
 
         # If unsubscribe is called, that means need to delete the browser
-        # and notification info from server. 
+        # and notification info from server.
         if status_type == "unsubscribe":
             push_info.delete()
             subscription.delete()
