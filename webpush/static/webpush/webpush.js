@@ -4,6 +4,8 @@ var isPushEnabled = false,
     registration,
     subBtn;
 
+var ua = window.navigator.userAgent.toLowerCase();
+
 window.addEventListener('load', function() {
   subBtn = document.getElementById('webpush-subscribe-button');
 
@@ -17,7 +19,6 @@ window.addEventListener('load', function() {
     }
   );
 
-  // Do everything if the Browser Supports Service Worker
   if ('serviceWorker' in navigator) {
     const serviceWorker = document.querySelector('meta[name="service-worker-js"]').content;
     navigator.serviceWorker.register(serviceWorker).then(
@@ -28,17 +29,23 @@ window.addEventListener('load', function() {
   }
   // If service worker not supported, show warning to the message box
   else {
-    showMessage(gettext('Service workers are not supported in your browser.'));
+    if(!(ua.indexOf("iphone") !== -1 || ua.indexOf("ipad") !== -1)) {
+      alert("ご利用のブラウザは、ブラウザ通知機能に対応しておりません。");
+      showMessage("ご利用のブラウザは、ブラウザ通知機能に対応しておりません。");
+    }
   }
 
   // Once the service worker is registered set the initial state
   function initialiseState(reg) {
     // Are Notifications supported in the service worker?
     if (!(reg.showNotification)) {
-        // Show a message and activate the button
-        subBtn.textContent = 'Subscribe to Push Messaging';
-        showMessage(gettext('Showing notifications are not supported in your browser.'));
-        return;
+      // Show a message and activate the button
+      subBtn.textContent = 'ブラウザ通知を受け取る';
+      if(!(ua.indexOf("iphone") !== -1 || ua.indexOf("ipad") !== -1)) {
+        alert("ご利用のブラウザは、ブラウザ通知機能に対応しておりません。");
+        showMessage("ご利用のブラウザは、ブラウザ通知機能に対応しておりません。");
+      }
+      return;
     }
 
     // Check the current Notification permission.
@@ -46,18 +53,19 @@ window.addEventListener('load', function() {
     // user changes the permission
     if (Notification.permission === 'denied') {
       // Show a message and activate the button
-      subBtn.textContent = gettext('Subscribe to Push Messaging');
+      subBtn.textContent = 'ブラウザ通知を受け取る';
       subBtn.disabled = false;
-      showMessage(gettext('Push notifications are blocked by your browser.'));
+      alert("ブラウザ通知を許可してください。危険通知が受け取れません。");
+      showMessage("ブラウザ通知を許可してください。危険通知が受け取れません。");
       return;
     }
 
     // Check if push messaging is supported
     if (!('PushManager' in window)) {
       // Show a message and activate the button
-      subBtn.textContent = 'Subscribe to Push Messaging';
+      subBtn.textContent = 'ブラウザ通知を受け取る';
       subBtn.disabled = false;
-      showMessage(gettext('Push notifications are not available in your browser.'));
+      showMessage("ブラウザ通知が使用できない状態になっております。");
       return;
     }
 
@@ -70,17 +78,22 @@ window.addEventListener('load', function() {
               // Check the information is saved successfully into server
               if (response.status === 201) {
                 // Show unsubscribe button instead
-                subBtn.textContent = gettext('Unsubscribe from Push Messaging');
+                subBtn.textContent = 'プッシュ通知を受け取らない';
                 subBtn.disabled = false;
                 isPushEnabled = true;
-                showMessage(gettext('Successfully subscribed to push notifications.'));
               }
             });
         }
       });
+
+    Notification.requestPermission().then(function(result) {
+      if (result == "granted"){
+        subscribe(registration);
+      }
+    });
   }
-}
-);
+});
+
 
 function showMessage(message) {
   const messageBox = document.getElementById('webpush-message');
@@ -117,16 +130,16 @@ function subscribe(reg) {
                 // Check the information is saved successfully into server
                 if (response.status === 201) {
                   // Show unsubscribe button instead
-                  subBtn.textContent = gettext('Unsubscribe from Push Messaging');
+                  subBtn.textContent = 'ブラウザ通知を受け取らない';
                   subBtn.disabled = false;
                   isPushEnabled = true;
-                  showMessage(gettext('Successfully subscribed to push notifications.'));
+                  showMessage('Successfully subscribed for Push Notification');
                 }
               });
           })
         .catch(
           function() {
-            console.log(gettext('Error while subscribing to push notifications.'), arguments)
+            console.log('Subscription error.', arguments)
           })
     }
   );
@@ -149,44 +162,42 @@ function urlB64ToUint8Array(base64String) {
 
 function unsubscribe(reg) {
   // Get the Subscription to unregister
-  reg.pushManager.getSubscription()
-    .then(
-      function(subscription) {
+  reg.pushManager.getSubscription().then(
+    function(subscription) {
 
-        // Check we have a subscription to unsubscribe
-        if (!subscription) {
-          // No subscription object, so set the state
-          // to allow the user to subscribe to push
-          subBtn.disabled = false;
-          showMessage(gettext('Subscription is not available.'));
-          return;
-        }
-        postSubscribeObj('unsubscribe', subscription,
-          function(response) {
-            // Check if the information is deleted from server
-            if (response.status === 202) {
-              // Get the Subscription
-              // Remove the subscription
-              subscription.unsubscribe()
-                .then(
-                  function(successful) {
-                    subBtn.textContent = gettext('Subscribe to Push Messaging');
-                    showMessage(gettext('Successfully unsubscribed from push notifications.'));
-                    isPushEnabled = false;
-                    subBtn.disabled = false;
-                  }
-                )
-                .catch(
-                  function(error) {
-                    subBtn.textContent = gettext('Unsubscribe from Push Messaging');
-                    showMessage(gettext('Error while unsubscribing from push notifications.'));
-                    subBtn.disabled = false;
-                  }
-                );
-            }
-          });
+      // Check we have a subscription to unsubscribe
+      if (!subscription) {
+        // No subscription object, so set the state
+        // to allow the user to subscribe to push
+        subBtn.disabled = false;
+        showMessage('Subscription is not available');
+        return;
       }
-    )
+      postSubscribeObj('unsubscribe', subscription,
+        function(response) {
+          // Check if the information is deleted from server
+          if (response.status === 202) {
+            // Get the Subscription
+            // Remove the subscription
+            subscription.unsubscribe()
+              .then(
+                function(successful) {
+                  subBtn.textContent = 'ブラウザ通知を受け取る';
+                  showMessage('Successfully unsubscribed for Push Notification');
+                  isPushEnabled = false;
+                  subBtn.disabled = false;
+                }
+              )
+              .catch(
+                function(error) {
+                  subBtn.textContent = 'ブラウザ通知を受け取らない';
+                  showMessage('Error during unsubscribe from Push Notification');
+                  subBtn.disabled = false;
+                }
+              );
+          }
+        });
+  })
 }
 
 function postSubscribeObj(statusType, subscription, callback) {
@@ -196,11 +207,12 @@ function postSubscribeObj(statusType, subscription, callback) {
   // to send push messages
 
   var browser = navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/ig)[0].toLowerCase(),
-    data = {  status_type: statusType,
-              subscription: subscription.toJSON(),
-              browser: browser,
-              group: subBtn.dataset.group
-           };
+    data = {
+      status_type: statusType,
+      subscription: subscription.toJSON(),
+      browser: browser,
+      group: subBtn.dataset.group
+    };
 
   fetch(subBtn.dataset.url, {
     method: 'post',
